@@ -1,4 +1,4 @@
-;========================================================================13OKT13DOS
+;========================================================================16OKT13WIN
 ;=PBINGEN Version 2. PX Count version
 ;==================================================================================
 org 100h
@@ -62,7 +62,7 @@ process_cli:
         jz open_file            ;if so, jump
         loop process_cli        ;loop back.
 
-;^HOTFIXED, GO THROUGH AGAIN LATER.
+;^HOTFIXED, GO THROUGH AGAIN LATER. NOTE TO SELF: Fails pretty badly if order of /o filename filename is changed. Check terminations and CX.
 
 ;================OPEN THE FILE AND READ IT TO BUFFER.
 open_file:
@@ -241,8 +241,6 @@ dump_buf:
         int 21h
         ret
 segment .data
-tfilename:       db "IN.BMP",0
-tnewfile:        db "OUT.BIN",0
 eighty_pad:     dw 0000h
 line_len        dw 0000h
 line_len_padded dw 0000h
