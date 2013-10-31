@@ -1,4 +1,4 @@
-;========================================================================16OKT13WIN
+;========================================================================30OKT13WIN
 ;=A small editor to create images for ppony to display.
 ;==================================================================================
 org 100h
@@ -34,10 +34,20 @@ main_l:
         int 21h
 ;===            Define key
         cmp al,00h              ;We got an extended key.
-        je .ex
+        je .ex                  ;jump to extended key land.
+
+;===            Drawing keys.
+        ;Default to number keys for 10 colours
+        ;range check... will make this non-configurable
+        cmp al,31h
+        je  .colour_test
+        cmp al,32h
+        je  .colour_alt
         jmp main_l
+
+;===            Movement keys.
 .ex:
-        int 21h                 ;ah=07h
+        int 21h                 ;get our extended key
         cmp al,2dh              ;ALT X
         je  .altx
         cmp al,48h              ;arrow up.
@@ -49,6 +59,7 @@ main_l:
         cmp al,4dh
         je .right
         jmp main_l
+
 ;===            Executions.
 .up:
 ;-(160)
@@ -88,8 +99,24 @@ main_l:
         jmp main_l
 .altx:
         jmp exit ;temp
-;===            Process Key
+
+.colour_test:
+        mov word [u_cursor],0adbh
         jmp main_l
+.colour_alt:
+        mov word [u_cursor],0cdbh
+        jmp main_l
+
+;.fill_test:
+;        mov ax,0cdbh
+        ;get colour we clicked.
+;..lp:
+        ;->?
+        ;^?
+        ;v?
+        ;<-?
+;        jmp main_l
+;===            Process Key
 exit:
         mov ax,4c00h
         int 21h
