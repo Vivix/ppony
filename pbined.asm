@@ -9,36 +9,36 @@ segment .code
 ;===            SET OUR SEGMENTS TO DRAW
         mov ax,0b800h
         mov es,ax               ;es is now our window into vga.
+
 ;===            INITIALIZE AND SET UP
+;       TODO: Check blinkbit status.
+        mov ax,1003h            ;Disable blink bit for dosbox.
+        xor bl,bl
+        int 10h
 
 ;===            DRAW OUR SCREEN.
         call cls                ;Clear the screen and forget our old screen.
-        mov al,18h              ;row 0x18
-        xor bx,bx               ;column 0
-        mov cx,50h              ;THESE SHOULD ALL BE FACTORS OF SCREEN SIZE. < better idea to this.
-        call draw_line
-        ;PRINT A NEUTRAL LINE WITH A SET OF CHARACTERS IN 0-F DISPLAYING THEIR COLOURS.
+
+        call draw_status        ;Draw our base screen (Status line)
 
         mov bx,[crsr_pos]       ;Load bx with our initial cursor position.
-                                ;Try to keep BX alive so that we can avoid memory calls when doing cursor movement stuff.
+                                ;Try to keep BX alive so that we can avoid memory
+                                ;calls when doing cursor movement stuff.
         mov al,041h
         mov ah,6fh
         mov word [es:bx],ax       ;put in our cursor.
-;===            PREPARE FOR MAINLOOP.
 
-;===            MAIN LOOP
+;===         PREPARE FOR MAINLOOP.
+
+;===         Main loop
 main_l:
-       ; jmp exit
-;===            Get key
-        mov ah,07h              ;Direct character input.
+        mov ah,07h              ;Get and process keyboard input.
         int 21h
-;===            Define key
+
         cmp al,00h              ;We got an extended key.
         je .ex                  ;jump to extended key land.
 
 ;===            Drawing keys.
-        ;Default to number keys for 10 colours
-        ;range check... will make this non-configurable
         cmp al,31h
         je  .colour_test
         cmp al,32h
@@ -74,7 +74,7 @@ main_l:
 ;+(160)
         mov ax,[u_cursor]               ;load ax
         mov word [es:bx],ax             ;put in the old colour beneath cursor
-        add bx,0a0h                     ;-160 position and then redraw
+        add bx,0a0h                     ;+160 position and then redraw
         mov ax,[es:bx]                  ;load ax
         mov word [u_cursor],ax          ;store our new positions colour for later
         mov word [es:bx],0fdbh          ;draw our new cursor position
@@ -83,7 +83,7 @@ main_l:
 ;-2
         mov ax,[u_cursor]               ;load ax
         mov word [es:bx],ax             ;put in the old colour beneath cursor
-        sub bx,02h                      ;-160 position and then redraw
+        sub bx,02h                      ;-2 position and then redraw
         mov ax,[es:bx]                  ;load ax
         mov word [u_cursor],ax          ;store our new positions colour for later
         mov word [es:bx],0fdbh          ;draw our new cursor position
@@ -92,7 +92,7 @@ main_l:
 ;+2
         mov ax,[u_cursor]               ;load ax
         mov word [es:bx],ax             ;put in the old colour beneath cursor
-        add bx,02h                      ;-160 position and then redraw
+        add bx,02h                      ;+2 position and then redraw
         mov ax,[es:bx]                  ;load ax
         mov word [u_cursor],ax          ;store our new positions colour for later
         mov word [es:bx],0fdbh          ;draw our new cursor position
@@ -101,49 +101,63 @@ main_l:
         jmp exit ;temp
 
 .colour_test:
-        mov word [u_cursor],0adbh
-        jmp main_l
+        mov word [u_cursor],0adbh       ;place the new colour into under-cursor
+        jmp main_l                      ;this makes moving draw it onto the screen
 .colour_alt:
         mov word [u_cursor],0cdbh
         jmp main_l
 
-;.fill_test:
-;        mov ax,0cdbh
-        ;get colour we clicked.
-;..lp:
-        ;->?
-        ;^?
-        ;v?
-        ;<-?
-;        jmp main_l
 ;===            Process Key
 exit:
         mov ax,4c00h
         int 21h
 ;===            CALLS
 ;
-;TAKES AL BX AS X/Y ON WHERE TO DRAW
-;TAKES CX TO SAY HOW LONG A LINE TO DRAW
-;PS: Should be lined in such a way that we can change character.
-draw_line:
-        ;check if line is longer than screen, if so alter cx (or alter cx dumbly)
-        ;^y? This should always use factors of screenwidth, or dumbly programmed.
-        ;this check would protect against programmer mistakes, not configurations.
-        mov ah,0a0h             ;160
-        mul ah                  ;ROW * 160 -> ax
-        shl bx,01h              ;CLMN * 2
-        add bx,ax               ;(row*160)+(clmn*2)
+;       DRAW STATUS
+;
+;   Draws that statusline part of the user interface.
+draw_status:
+        mov di,0f00h                    ;Initialize our pointer into VGA (es:di) to the right coordinate.
 
-        mov ah,07h              ;colour in ah.
-        mov al,0dbh             ;character in al
-.lp:
-        mov word [es:bx],ax     ;print for ammount in cx
-        inc bx
-        inc bx                  ;unsure if add bx,02h is faster or not.
-        loop .lp
+        mov ax,71cfh                    ;Draw our first block.
+        stosw
+
+        mov ah,0fh                      ;Initialize the first colour of the colourbar.
+        mov al,30h
+        mov cx,0ah                      ;we're going to jump after 10 iterations to account for 0x39 9 -> 0x41 A
+.cl:                                    ;draw colours 0-A in status bar.
+        stosw
+        add ah,10h                      ;increment the background colour.
+        inc al
+        loop .cl
+
+        cmp al,47h                      ;Skip ahead if we're done printing 0-A
+        jz  .cl_dn
+        sub ah,0fh                      ;Change to black foreground text.
+        mov al,41h                      ;skip to 0x41 A
+        mov cx,06h
+        jmp .cl
+.cl_dn:
+
+        mov ax,7020h
+        mov cx,07h
+.fill1:
+        stosw
+        loop .fill1
+
+        ;filename
         ret
-;;CLEAR SCREEN
-;;DESTROYS bx,cx
+        ; if modified * (Seperate function for quickly updating this?)
+
+        ;fill in
+
+        ;draw 0-4 selected colours <-
+    
+        ret
+
+;       CLEAR SCREEN cls
+;
+;   Destroys cx and bx.
 cls:
         xor bx,bx
         mov cx,0780h
@@ -153,6 +167,7 @@ cls:
         inc bx
         loop .lp
         ret
+
 segment .data
 u_cursor:       dw      0000h   ;colour and character under cursor (for future chr)
 crsr_pos:       dw      07d0h   ;our initial cursor position, and subsequently our new positions if it is ever needed.
