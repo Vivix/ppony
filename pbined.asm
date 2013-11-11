@@ -40,9 +40,13 @@ main_l:
 
 ;===            Drawing keys.
         cmp al,31h
-        je  .colour_test
+        je  .c_one
         cmp al,32h
-        je  .colour_alt
+        je  .c_two
+        cmp al,33h
+        je  .c_three
+        cmp al,34h
+        je  .c_four
         jmp main_l
 
 ;===            Movement keys.
@@ -100,11 +104,17 @@ main_l:
 .altx:
         jmp exit ;temp
 
-.colour_test:
-        mov word [u_cursor],0adbh       ;place the new colour into under-cursor
+.c_one:
+        mov word [u_cursor],01dbh       ;place the new colour into under-cursor
         jmp main_l                      ;this makes moving draw it onto the screen
-.colour_alt:
-        mov word [u_cursor],0cdbh
+.c_two:
+        mov word [u_cursor],02dbh
+        jmp main_l
+.c_three:
+        mov word [u_cursor],03dbh
+        jmp main_l
+.c_four:
+        mov word [u_cursor],04dbh
         jmp main_l
 
 ;===            Process Key
