@@ -1,68 +1,60 @@
 ;========================================================================16OKT13WIN
 ;=PBINGEN Version 2. PX Count version
-;==================================================================================
+;================================================================================== 
 org 100h
 
 segment .code
 ;================PERFORM CLI
-        mov bx,0081h
-        xor ch,ch
-        mov cl,[0080h]          ;get length.
-        cmp cx,0000h
-        jz exit
-        xor di,di
-process_cli:
-        mov al,[bx]             ;get the first character
-        inc bx                  ;increment addresses
-        cmp al,"/"              ;are we a /?
-        jz .switch
-        cmp al,20h              ;space
-        jnz .input              ;We assume this is our input file.
-        loop process_cli
-        jmp open_file
-.switch:
-        dec cx                  ;we took a byte before coming here, Inform!
-        mov al,[bx]             ;get our next character.
-        inc bx                  ;increment our reading address
-        dec cx                  ;We took a byte in a non-loop block. Inform!
-        cmp al,"o"              ;is our switch /o?
-        jz .output              ;If so, jump.
-        cmp al,"?"              ;is our switch /?
-        jz exit_help            ;if so, jump.
-        jmp exit                ;jump to exit if it is an invalid switch.
-.input:
-        mov [filename+di],al    ;write into filename
-        inc di                  ;increment writing address
-        mov al,[bx]             ;get next character.
-        inc bx                  ;increment reading address
-        cmp al,20h              ;is it a space?
-        jz .inpdn               ;if so, run away.
-        loop .input             ;LOOP
-.inpdn:
-        mov byte [filename+di],00h  ;null terminate our strings.
-        jmp .leap
-.output:
-        inc bx                  ;set up the loop for output file
-        mov al,[bx]             ;we need to skip the space after /o
-        dec cx                  ;decrement counter
-.lp:
-        mov [newfile+di],al     ;see above.
-        inc di
-        inc bx
-        mov al,[bx]
-        cmp al,20h      ;CAN'T BE SAME ROUTINE AS ABOVE IS /O FILENAME NOT FILENAME
-        jz .lpdn
-        loop .lp
-        jmp open_file
-.lpdn:
-        mov byte [newfile+di],00h   ;null terminate our strings.
-.leap: 
-        xor di,di               ;blank di in case of more writing. add zero.
-        or cx,cx                ;have we met zero?
-        jz open_file            ;if so, jump
-        loop process_cli        ;loop back.
+cli_main:
+        mov si,0080             ;use source index for most of our cli.
+        lodsb
+        cmp al,0
+        jz .no_arg
+.m_l:
+        lodsb
+        cmp al,20h              ;skip spaces
+        jz .m_l
 
-;^HOTFIXED, GO THROUGH AGAIN LATER. NOTE TO SELF: Fails pretty badly if order of /o filename filename is changed. Check terminations and CX.
+        cmp al,'/'
+        jz .switch
+
+        cmp al,0dh
+        jz .done
+
+        jmp .input              ;[filename]
+.switch:
+        lodsb
+        cmp al,'o'
+        jz .output
+
+        cmp al,'?'
+        jz exit_help
+        jmp exit
+.file:
+        stosb
+        lodsb
+        cmp al,20h              ;test against our only delim.
+        jz .f_done
+
+        cmp al,0dh              ;if we hit 0d we are at the end
+        jz .done
+
+        jmp .file
+.output:
+        mov di,newfile
+        inc si              ;skip "o "
+        lodsb
+        jmp .file
+.input:
+        mov di,filename
+        jmp .file
+.f_done:
+        xor al,al
+        stosb
+        jmp .m_l
+.no_arg:
+        ;?
+.done:
 
 ;================OPEN THE FILE AND READ IT TO BUFFER.
 open_file:
